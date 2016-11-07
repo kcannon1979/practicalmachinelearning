@@ -1,0 +1,146 @@
+---
+title: "Practical Machine Learning Course Project"
+author: "Ken Cannon"
+date: "November 5, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Model Building
+In the following code, I will use various datasets to build prediction models to
+predict the manner in which an exercise was done, corresponding to the "classe"
+variable in the dataset of individuals doing 10 reptitions of the Unilateral
+Dumbbell Biceps Curl in five different manners: A (correct) and B through E (incorrect).
+
+
+The dataset has already been split into a training and a testing dataset. I load
+the data, as well as associated libraries necessary for analysis (code not shown).
+
+```{r, echo=FALSE}
+setwd("C:/Users/Ken/Google Drive/Coursera - Data Science - 8-Practical Machine Learning/Course Project")
+load("./.rdata")
+
+library(caret)
+library(ggthemes)
+library(lubridate)
+
+training <- read.csv("./pml-training.csv")
+testing <- read.csv("./pml-testing.csv")
+
+```
+The following displays a distribution of the main variable of interest. We can see
+that the exercise was done correctly the most of any of the five variables.
+```{r}
+#Display distribution of classe variable
+barClasse <- ggplot(training, aes(x = classe)) + geom_bar() + theme_tufte()
+barClasse
+```
+
+I now exclude variables with mostly NAs or blank values from the training and testing
+sets (to preclude their use as explanatory variables).
+```{r}
+# Create subset of columns without mostly NA values
+trainingsub <- training[, c(8:11, 37:49, 60:68, 84:86, 102, 113:124, 140, 151:160)]
+testingsub <- testing[, c(8:11, 37:49, 60:68, 84:86, 102, 113:124, 140, 151:160)]
+```
+Because there are approximately 160 variables in the dataset in total, I create
+principal components from the subsetted dataset's numeric variables as a dimension
+reduction technique, which will be used in a few subsequent analyses to determine
+if fewer explanatory variables could be used to explain the outcome variable.
+```{r}
+#Create principal components from numeric explanatory variables, excluding variables
+#on class
+nums <- sapply(trainingsub, is.numeric)
+trainingsubnums <- trainingsub[, nums]
+preProc <- preProcess(trainingsub[,-53], method = "pca")
+preProc
+```
+The first model is a prediction using a CART model on the PCA subsetted variables.
+```{r}
+#Predict using classification and regression trees, using PCA subset
+trainPC <- predict(preProc, trainingsub[,-53])
+modelFit <- train(classe ~ ., method = "rpart", data = trainingsub)
+modelFit
+```
+The second model uses linear discriminant analysis of the subsetted variables.
+```{r}
+#Predict using linear discriminant analysis
+modelFit2 <- train(classe ~ ., method = "lda", data = trainingsub)
+modelFit2
+```
+The third model uses quadratic discriminant analysis on the subsetted variables.
+```{r}
+#predict using quadratic discriminant analysis
+modelFit3 <- train(classe ~ ., method = "qda", data = trainingsub)
+modelFit3
+```
+The fourth model uses a CART model without the PCA subsetted variables.
+```{r}
+#Predict using CART, without PCAs
+modelFit4 <- train(classe ~ ., method = "rpart", data = trainingsub)
+modelFit4
+```
+
+## Cross Validation
+The following code runs predictions of each of the six models on the test data set.
+```{r}
+numstest <- sapply(testingsub, is.numeric)
+testingsubnums <- testingsub[,numstest]
+
+preProcTest <- preProcess(testingsub[,-53], method = "pca")
+preProcTest
+testPC <- predict(preProcTest, testingsub[,-53])
+predict1 <- predict(modelFit, newdata= testingsub[,-53])
+predict1
+```
+
+```{r}
+predict2 <- predict(modelFit2, newdata = testingsub[,-53])
+predict2
+```
+
+```{r}
+predict3 <- predict(modelFit3, newdata =testingsub[,-53])
+predict3
+```
+
+```{r}
+predict4 <- predict(modelFit4, newdata =testingsub[,-53])
+predict4
+```
+
+
+## Expected Out-of-Sample Error
+
+```{r}
+#Model 1
+table(trainingsub$classe, predict(modelFit, trainingsub))
+a = sum(predict(modelFit, trainingsub) == trainingsub$classe)/nrow(trainingsub)
+a
+#Model 2
+table(trainingsub$classe, predict(modelFit2, trainingsub))
+b = sum(predict(modelFit2, trainingsub) == trainingsub$classe)/nrow(trainingsub)
+b
+#Model 3
+table(trainingsub$classe, predict(modelFit3, trainingsub))
+c = sum(predict(modelFit3, trainingsub) == trainingsub$classe)/nrow(trainingsub)
+c
+#Model 4
+table(trainingsub$classe, predict(modelFit4, trainingsub))
+d = sum(predict(modelFit4, trainingsub) == trainingsub$classe)/nrow(trainingsub)
+d
+```
+As we can see, the third model has the highest accuracy of the four models at
+`r d` and is the expected out-of-sample error.
+
+## Rationales for Model Choices
+I chose to use four different models to sample a variety of methods for classifying
+the outcome variable of interest, classe. Specifically, I chose various methods
+for classification, including a classification tree both using and not using
+principal components for reducing the dimensionality of the numerous variables,
+as well as two additional methods for classification of a discrete outcome variable,
+linear discriminant analysis and quadratic discriminant analysis. Of these four,
+the QDA model performs the best (having the highest accuracy).
