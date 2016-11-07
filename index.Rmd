@@ -134,7 +134,7 @@ d = sum(predict(modelFit4, trainingsub) == trainingsub$classe)/nrow(trainingsub)
 d
 ```
 As we can see, the third model has the highest accuracy of the four models at
-`r d` and is the expected out-of-sample error.
+`r c` and is the expected out-of-sample error.
 
 ## Rationales for Model Choices
 I chose to use four different models to sample a variety of methods for classifying
